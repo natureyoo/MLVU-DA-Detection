@@ -74,3 +74,15 @@ _C.MODEL.SS.BATCH_SIZE = 32
 # _C.CONST.TOPK = 1
 # _C.CONST.STEP = 1
 
+# -----------------------------------------------------------------------------
+# Dataset for Unsupervised Domain Adaptation
+# -----------------------------------------------------------------------------
+_C.DATASETS = CN()
+# # List of the dataset names for training, as present in paths_catalog.py
+_C.DATASETS.TRAIN = ()
+# List of the dataset names for training of source domain, as present in paths_catalog.py
+_C.DATASETS.TRAIN_SOURCE = ()
+# List of the dataset names for training of target domain, as present in paths_catalog.py
+_C.DATASETS.TRAIN_TARGET = ()
+# List of the dataset names for testing, as present in paths_catalog.py
+_C.DATASETS.TEST = ()
