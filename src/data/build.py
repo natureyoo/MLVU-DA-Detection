@@ -40,7 +40,7 @@ __all__ = [
 ]
 
 
-def build_detection_train_loader(cfg, mapper=None):
+def build_detection_train_loader(cfg, mapper=None, domain='source'):
     """
     A data loader is created by the following steps:
     1. Use the dataset names in config to query :class:`DatasetCatalog`, and obtain a list of dicts.
@@ -70,8 +70,9 @@ def build_detection_train_loader(cfg, mapper=None):
         images_per_batch, num_workers
     )
     images_per_worker = images_per_batch // num_workers
+    dataset_type = cfg.DATASETS.TRAIN_SOURCE if domain =='source' else cfg.DATASETS.TRAIN_TARGET
     dataset_dicts = get_detection_dataset_dicts(
-        cfg.DATASETS.TRAIN_SOURCE,
+        dataset_type,
         filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS,
         min_keypoints=cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE
         if cfg.MODEL.KEYPOINT_ON

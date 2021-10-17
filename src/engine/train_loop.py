@@ -185,7 +185,7 @@ class SimpleTrainer(TrainerBase):
     or write your own training loop.
     """
 
-    def __init__(self, model, data_loader, optimizer):
+    def __init__(self, model, data_loader_source, data_loader_target, optimizer):
         """
         Args:
             model: a torch Module. Takes a data from data_loader and returns a
@@ -193,7 +193,7 @@ class SimpleTrainer(TrainerBase):
             data_loader: an iterable. Contains data to be used to call model.
             optimizer: a torch optimizer.
         """
-        super().__init__()
+        super().__init__(model, data_loader_source, optimizer)
 
         """
         We set the model to training mode in the trainer.
@@ -204,8 +204,10 @@ class SimpleTrainer(TrainerBase):
         model.train()
 
         self.model = model
-        self.data_loader = data_loader
-        self._data_loader_iter = iter(data_loader)
+        self.data_loader_source = data_loader_source
+        self.data_loader_target = data_loader_target
+        self._data_loader_iter_source = iter(data_loader_source)
+        self._data_loader_iter_target = iter(data_loader_target)
         self.optimizer = optimizer
 
     def run_step(self):
@@ -219,14 +221,21 @@ class SimpleTrainer(TrainerBase):
         """
         If you want to do something with the data, you can wrap the dataloader.
         """
-        data = next(self._data_loader_iter)
+        data_source = next(self._data_loader_iter_source)
+        data_target = next(self._data_loader_iter_target)
         data_time = time.perf_counter() - start
 
         """
         If you want to do something with the losses, you can wrap the model.
         """
-        loss_dict = self.model(data)
-        losses = sum(loss_dict.values())
+        loss_dict_source = self.model(data_source, domain='source')
+        loss_dict_target = self.model(data_target, domain='target')
+        losses = sum(loss_dict_source.values()) + sum(loss_dict_target.values())
+        loss_dict = {}
+        for k in loss_dict_source.keys():
+            loss_dict['{}_source'.format(k)] = loss_dict_source[k]
+        for k in loss_dict_target.keys():
+            loss_dict['{}_target'.format(k)] = loss_dict_target[k]
 
         """
         If you need to accumulate gradients or do something similar, you can
