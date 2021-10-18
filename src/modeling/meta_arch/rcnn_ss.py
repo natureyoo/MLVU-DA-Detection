@@ -12,6 +12,8 @@ from detectron2.modeling.proposal_generator import build_proposal_generator
 from detectron2.structures import ImageList
 from detectron2.utils.logger import log_first_n
 
+from ..backbone import vgg
+
 import logging
 import math
 
