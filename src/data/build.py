@@ -70,7 +70,10 @@ def build_detection_train_loader(cfg, mapper=None, domain='source'):
         images_per_batch, num_workers
     )
     images_per_worker = images_per_batch // num_workers
-    dataset_type = cfg.DATASETS.TRAIN_SOURCE if domain =='source' else cfg.DATASETS.TRAIN_TARGET
+    if cfg.DATASETS.CROSS_DOMAIN:
+        dataset_type = cfg.DATASETS.TRAIN_SOURCE if domain =='source' else cfg.DATASETS.TRAIN_TARGET
+    else:
+        dataset_type = cfg.DATASETS.TRAIN
     dataset_dicts = get_detection_dataset_dicts(
         dataset_type,
         filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS,

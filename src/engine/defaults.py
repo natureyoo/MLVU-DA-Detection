@@ -286,13 +286,20 @@ class DefaultTrainer(SimpleTrainer):
         # Assume these objects must be constructed in this order.
         model = self.build_model(cfg)
         optimizer = self.build_optimizer(cfg, model)
-        data_loader_source = self.build_train_loader(cfg, domain='source')
-        data_loader_target = self.build_train_loader(cfg, domain='target')
 
-        super().__init__(model, data_loader_source, optimizer)
+        self.cross_domain = cfg.DATASETS.CROSS_DOMAIN
+        if self.cross_domain:
+            data_loader_source = self.build_train_loader(cfg, domain='source')
+            data_loader_target = self.build_train_loader(cfg, domain='target')
 
-        self.data_loader_target = data_loader_target
-        self._data_loader_iter_target = iter(data_loader_target)
+            super().__init__(model, data_loader_source, optimizer)
+
+            self.data_loader_target = data_loader_target
+            self._data_loader_iter_target = iter(data_loader_target)
+        else:
+            data_loader = self.build_train_loader(cfg)
+
+            super().__init__(model, data_loader, optimizer)
 
         # For training, wrap with DDP. But don't need this for inference.
         if comm.get_world_size() > 1:
@@ -329,21 +336,30 @@ class DefaultTrainer(SimpleTrainer):
         """
         If you want to do something with the data, you can wrap the dataloader.
         """
-        data_source = next(self._data_loader_iter)
-        data_target = next(self._data_loader_iter_target)
-        data_time = time.perf_counter() - start
+        if self.cross_domain:
+            data_source = next(self._data_loader_iter)
+            data_target = next(self._data_loader_iter_target)
+            data_time = time.perf_counter() - start
 
-        """
-        If you want to do something with the losses, you can wrap the model.
-        """
-        loss_dict_source = self.model(data_source, domain='source')
-        loss_dict_target = self.model(data_target, domain='target')
-        losses = sum(loss_dict_source.values()) + sum(loss_dict_target.values())
-        loss_dict = {}
-        for k in loss_dict_source.keys():
-            loss_dict['{}_source'.format(k)] = loss_dict_source[k]
-        for k in loss_dict_target.keys():
-            loss_dict['{}_target'.format(k)] = loss_dict_target[k]
+            """
+            If you want to do something with the losses, you can wrap the model.
+            """
+            loss_dict_source = self.model(data_source, domain='source')
+            loss_dict_target = self.model(data_target, domain='target')
+            losses = sum(loss_dict_source.values()) + sum(loss_dict_target.values())
+            loss_dict = loss_dict_source
+            for k in loss_dict_target.keys():
+                loss_dict['{}_target'.format(k)] = loss_dict_target[k]
+        else:
+            data = next(self._data_loader_iter)
+            data_time = time.perf_counter() - start
+
+            """
+            If you want to do something with the losses, you can wrap the model.
+            """
+            loss_dict_source = self.model(data)
+            losses = sum(loss_dict_source.values())
+            loss_dict = loss_dict_source
 
         """
         If you need to accumulate gradients or do something similar, you can

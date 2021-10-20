@@ -78,6 +78,7 @@ _C.MODEL.SS.BATCH_SIZE = 32
 # Dataset for Unsupervised Domain Adaptation
 # -----------------------------------------------------------------------------
 _C.DATASETS = CN()
+_C.DATASETS.CROSS_DOMAIN = False
 # # List of the dataset names for training, as present in paths_catalog.py
 _C.DATASETS.TRAIN = ()
 # List of the dataset names for training of source domain, as present in paths_catalog.py
