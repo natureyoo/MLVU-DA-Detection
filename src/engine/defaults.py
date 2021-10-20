@@ -23,6 +23,7 @@ from detectron2.utils.events import (
     CommonMetricPrinter,
     JSONWriter,
     TensorboardXWriter,
+    get_event_storage,
 )
 from detectron2.utils.logger import setup_logger
 
@@ -301,6 +302,8 @@ class DefaultTrainer(SimpleTrainer):
 
             super().__init__(model, data_loader, optimizer)
 
+        self.data_loader_val = self.build_train_loader(cfg, is_val=True)
+
         # For training, wrap with DDP. But don't need this for inference.
         if comm.get_world_size() > 1:
             model = DistributedDataParallel(
@@ -326,6 +329,19 @@ class DefaultTrainer(SimpleTrainer):
         self.register_hooks(self.build_hooks())
 
     def run_step(self):
+        loss_dict = {}
+        if self.iter % 500 == 0:
+            # self.model.eval()
+            loss_dict_val_total = {'loss_cls': 0, 'loss_box_reg': 0, 'loss_rpn_cls': 0, 'loss_rpn_loc': 0, 'loss_rot_cls': 0}
+            print('calculating validation loss.....')
+            with torch.no_grad():
+                for iter_val, data_val in enumerate(self.data_loader_val):
+                    loss_dict_val = self.model(data_val)
+                    for k in loss_dict_val.keys():
+                        loss_dict_val_total[k] += loss_dict_val[k].item()
+            for k in loss_dict_val_total.keys():
+                loss_dict['{}_val'.format(k)] = loss_dict_val_total[k] / (iter_val + 1)
+
         """
         Implement the standard training logic described above.
         """
@@ -347,7 +363,8 @@ class DefaultTrainer(SimpleTrainer):
             loss_dict_source = self.model(data_source, domain='source')
             loss_dict_target = self.model(data_target, domain='target')
             losses = sum(loss_dict_source.values()) + sum(loss_dict_target.values())
-            loss_dict = loss_dict_source
+            for k in loss_dict_source.keys():
+                loss_dict['{}'.format(k)] = loss_dict_source[k]
             for k in loss_dict_target.keys():
                 loss_dict['{}_target'.format(k)] = loss_dict_target[k]
         else:
@@ -359,7 +376,8 @@ class DefaultTrainer(SimpleTrainer):
             """
             loss_dict_source = self.model(data)
             losses = sum(loss_dict_source.values())
-            loss_dict = loss_dict_source
+            for k in loss_dict_source.keys():
+                loss_dict['{}'.format(k)] = loss_dict_source[k]
 
         """
         If you need to accumulate gradients or do something similar, you can
@@ -371,6 +389,44 @@ class DefaultTrainer(SimpleTrainer):
         self._write_metrics(loss_dict, data_time)
 
         self.optimizer.step()
+
+    def _write_metrics(self, loss_dict, data_time, prefix="",) -> None:
+        """
+        Args:
+            loss_dict (dict): dict of scalar losses
+            data_time (float): time taken by the dataloader iteration
+            prefix (str): prefix for logging keys
+        """
+        metrics_dict = {k: v.detach().cpu().item() if 'val' not in k else v for k, v in loss_dict.items()}
+        metrics_dict["data_time"] = data_time
+
+        # Gather metrics among all workers for logging
+        # This assumes we do DDP-style training, which is currently the only
+        # supported method in detectron2.
+        all_metrics_dict = comm.gather(metrics_dict)
+
+        if comm.is_main_process():
+            storage = get_event_storage()
+
+            # data_time among workers can have high variance. The actual latency
+            # caused by data_time is the maximum among workers.
+            data_time = np.max([x.pop("data_time") for x in all_metrics_dict])
+            storage.put_scalar("data_time", data_time)
+
+            # average the rest metrics
+            metrics_dict = {
+                k: np.mean([x[k] for x in all_metrics_dict]) for k in all_metrics_dict[0].keys()
+            }
+            total_losses_reduced = sum(metrics_dict.values())
+            if not np.isfinite(total_losses_reduced):
+                raise FloatingPointError(
+                    f"Loss became infinite or NaN at iteration={storage.iter}!\n"
+                    f"loss_dict = {metrics_dict}"
+                )
+
+            storage.put_scalar("{}total_loss".format(prefix), total_losses_reduced)
+            if len(metrics_dict) > 1:
+                storage.put_scalars(**metrics_dict)
 
     def resume_or_load(self, resume=True):
         """
@@ -522,7 +578,7 @@ class DefaultTrainer(SimpleTrainer):
         return build_lr_scheduler(cfg, optimizer)
 
     @classmethod
-    def build_train_loader(cls, cfg, domain='source'):
+    def build_train_loader(cls, cfg, domain='source', is_val=False):
         """
         Returns:
             iterable
@@ -531,7 +587,7 @@ class DefaultTrainer(SimpleTrainer):
         Overwrite it if you'd like a different data loader.
         """
 
-        dataloader = build_detection_train_loader(cfg, domain=domain)
+        dataloader = build_detection_train_loader(cfg, domain=domain, is_val=is_val)
         if cfg.DATALOADER.SAMPLER_TRAIN == "PairTrainingSampler":
             dataloader = PairDataLoader(cfg, dataloader)
         return dataloader

@@ -19,6 +19,7 @@ from detectron2.utils.env import seed_all_rng
 from detectron2.data.samplers import (
     RepeatFactorTrainingSampler,
     TrainingSampler,
+    InferenceSampler,
 )
 from detectron2.utils.comm import get_world_size
 
@@ -40,7 +41,7 @@ __all__ = [
 ]
 
 
-def build_detection_train_loader(cfg, mapper=None, domain='source'):
+def build_detection_train_loader(cfg, mapper=None, domain='source', is_val=False):
     """
     A data loader is created by the following steps:
     1. Use the dataset names in config to query :class:`DatasetCatalog`, and obtain a list of dicts.
@@ -70,10 +71,13 @@ def build_detection_train_loader(cfg, mapper=None, domain='source'):
         images_per_batch, num_workers
     )
     images_per_worker = images_per_batch // num_workers
-    if cfg.DATASETS.CROSS_DOMAIN:
-        dataset_type = cfg.DATASETS.TRAIN_SOURCE if domain =='source' else cfg.DATASETS.TRAIN_TARGET
+    if is_val:
+        dataset_type = cfg.DATASETS.TEST
     else:
-        dataset_type = cfg.DATASETS.TRAIN
+        if cfg.DATASETS.CROSS_DOMAIN:
+            dataset_type = cfg.DATASETS.TRAIN_SOURCE if domain =='source' else cfg.DATASETS.TRAIN_TARGET
+        else:
+            dataset_type = cfg.DATASETS.TRAIN
     dataset_dicts = get_detection_dataset_dicts(
         dataset_type,
         filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS,
@@ -88,6 +92,20 @@ def build_detection_train_loader(cfg, mapper=None, domain='source'):
     if mapper is None:
         mapper = DatasetMapper(cfg, True)
     dataset = MapDataset(dataset, mapper)
+
+    if is_val:
+        sampler = InferenceSampler(len(dataset))
+        # Always use 1 image per worker during inference since this is the
+        # standard when reporting inference time in papers.
+        batch_sampler = torch.utils.data.sampler.BatchSampler(sampler, cfg.SOLVER.IMS_PER_BATCH, drop_last=False)
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            num_workers=num_workers,
+            batch_sampler=batch_sampler,
+            collate_fn=trivial_batch_collator,
+        )
+        return data_loader
+
     # d=dataset[0]
     # print(d)
     # print(d['image'].size())

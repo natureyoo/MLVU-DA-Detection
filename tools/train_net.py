@@ -74,30 +74,29 @@ def main(args):
     # eval_only and eval_during_train are mainly used for jointly
     # training detection and self-supervised models.
     if args.eval_only:
-        # model = Trainer.build_model(cfg)
-        # DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-        #     cfg.MODEL.WEIGHTS, resume=args.resume
-        # )
-        # res = Trainer.test(cfg, model)
-        # import pdb; pdb.set_trace()
-        # if comm.is_main_process():
-        #     verify_results(cfg, res)
-        # if cfg.TEST.AUG.ENABLED:
-        #     res.update(Trainer.test_with_TTA(cfg, model))
-        # return res
-        from torch.utils.tensorboard import SummaryWriter
-        writer = SummaryWriter(cfg.OUTPUT_DIR)
         model = Trainer.build_model(cfg)
-        for i in range(8):
-            iteration = (i + 23) * 500 - 1
-            model_path = os.path.join(cfg.OUTPUT_DIR, 'model_{}.pth'.format(str(iteration).zfill(7)))
-            DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-                model_path, resume=args.resume
-            )
-            res = Trainer.test(cfg, model)
-            for k in res['bbox'].keys():
-                writer.add_scalar('mAP/{}'.format(k), res['bbox'][k], iteration)
+        DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
+            cfg.MODEL.WEIGHTS, resume=args.resume
+        )
+        res = Trainer.test(cfg, model)
+        if comm.is_main_process():
+            verify_results(cfg, res)
+        if cfg.TEST.AUG.ENABLED:
+            res.update(Trainer.test_with_TTA(cfg, model))
         return res
+        # from torch.utils.tensorboard import SummaryWriter
+        # writer = SummaryWriter(cfg.OUTPUT_DIR)
+        # model = Trainer.build_model(cfg)
+        # for i in range(8):
+        #     iteration = (i + 23) * 500 - 1
+        #     model_path = os.path.join(cfg.OUTPUT_DIR, 'model_{}.pth'.format(str(iteration).zfill(7)))
+        #     DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
+        #         model_path, resume=args.resume
+        #     )
+        #     res = Trainer.test(cfg, model)
+        #     for k in res['bbox'].keys():
+        #         writer.add_scalar('mAP/{}'.format(k), res['bbox'][k], iteration)
+        # return res
 
 
     elif args.eval_during_train:
