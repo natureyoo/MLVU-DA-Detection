@@ -29,9 +29,9 @@ class RotationHead(nn.Module):
         self.ratio = cfg.MODEL.SS.RATIO  # crop image ratio
 
         depth = cfg.MODEL.RESNETS.DEPTH
-        stage_ids = {"res2": 0, "res3": 1, "res4": 2, "res5": 3}
+        stage_ids = {"res2": 0, "res3": 1, "res4": 2, "res5": 3, 'vgg_block5': 3}
         num_blocks_per_stage = {50: [3, 4, 6, 3], 101: [3, 4, 23, 3],
-                                152: [3, 8, 36, 3]}[depth]
+                                152: [3, 8, 36, 3], 16: [3,3,3,3]}[depth]
         self.start_stage = min(stage_ids[cfg.MODEL.SS.FEAT_LEVEL]+1, 3)
         self.inplanes = cin
         self.scale = cfg.MODEL.SS.LOSS_SCALE

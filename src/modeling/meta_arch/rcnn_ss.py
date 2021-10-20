@@ -34,14 +34,20 @@ class SSRCNN(nn.Module):
         # pylint: disable=no-member
         self.device = torch.device(cfg.MODEL.DEVICE)
         self.backbone = build_backbone(cfg)
+        self.backbone_name = 'vgg' if 'vgg' in cfg.MODEL.BACKBONE.NAME else 'resnet'
         self.proposal_generator = build_proposal_generator(
             cfg, self.backbone.output_shape()
         )
         self.from_config(cfg)
         self.roi_heads = build_roi_heads(cfg, self.backbone.output_shape())
-        self.ss_head = build_ss_head(
-            cfg, self.backbone.bottom_up.output_shape()
-        )
+        if self.backbone_name == 'resnet':
+            self.ss_head = build_ss_head(
+                cfg, self.backbone.bottom_up.output_shape()
+            )
+        else:
+            self.ss_head = build_ss_head(
+                cfg, self.backbone.output_shape()
+            )
 
         for i in range(len(self.ss_head)):
             setattr(self, "ss_head_{}".format(i), self.ss_head[i])
@@ -82,9 +88,15 @@ class SSRCNN(nn.Module):
             head = getattr(self, "ss_head_{}".format(i))
             if head.input != "images":
                 continue
-            out, tar, ss_losses = head(
-                batched_inputs, self.backbone.bottom_up, self.feat_level
-            )  # attach new parameters
+            if self.backbone_name == 'resnet':
+                out, tar, ss_losses = head(
+                    batched_inputs, self.backbone.bottom_up, self.feat_level
+                )  # attach new parameters
+            else:
+                out, tar, ss_losses = head(
+                    batched_inputs, self.backbone, self.feat_level
+                )  # attach new parameters
+
             losses.update(ss_losses)
             acc = (out.argmax(axis=1) == tar).float().mean().item() * 100
             accuracies["accuracy_ss_{}".format(head.name)] = {
