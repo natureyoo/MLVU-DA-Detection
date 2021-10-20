@@ -45,4 +45,4 @@ INPUT:
   MIN_SIZE_TRAIN: (800, )
   CROP:
     ENABLED: True
-OUTPUT_DIR: "checkpoints/uda/city2foggy/R50_FPN_sourceonly"
+OUTPUT_DIR: "checkpoints/uda/city2foggy/R50_FPN_sourceonly_1020"

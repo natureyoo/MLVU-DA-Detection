@@ -13,6 +13,7 @@ MODEL:
     LOSS_SCALE: 0.5
     RATIO: 2.0
 DATASETS:
+  CROSS_DOMAIN: True
   TRAIN_SOURCE: ("cityscapes_train",)
   TRAIN_TARGET: ("cityscapes_foggy_train",)
   TEST: ("cityscapes_foggy_val",)
@@ -21,12 +22,12 @@ SOLVER:
   # for initial experiments, this schedule will be approximately, 0.5X schedule
   # ~5 epochs
   IMS_PER_BATCH: 16
-  BASE_LR: 0.002
-  STEPS: (6000, 10000,)
-  MAX_ITER: 15000
+  BASE_LR: 0.005
+  STEPS: (12000, 16000)
+  MAX_ITER: 20000
   CHECKPOINT_PERIOD: 500
 INPUT:
   MIN_SIZE_TRAIN: (800,)
   CROP:
     ENABLED: True
-OUTPUT_DIR: "checkpoints/uda/city2foggy/tmp"
+OUTPUT_DIR: "checkpoints/uda/city2foggy/R50_FPN_uda_rot_1020"
