@@ -1,0 +1,23 @@
+_BASE_: "../Base-RCNN-VGG.yaml"
+MODEL:
+  META_ARCHITECTURE: "SSRCNN"
+  WEIGHTS: "./checkpoints/vgg_d2.pkl"
+  MASK_ON: False
+  ROI_HEADS:
+    NUM_CLASSES: 8
+  SS:
+    FEAT_LEVEL: "vgg_block5"
+    NAME: [ "build_rotation_head" ]
+    LOSS_SCALE: 0.5
+    RATIO: 2.0
+SOLVER:
+  IMS_PER_BATCH: 16
+  BASE_LR: 0.002
+  STEPS: (12000, 16000)
+  MAX_ITER: 20000
+DATASETS:
+  CROSS_DOMAIN: True
+  TRAIN_SOURCE: ("cityscapes_train",)
+  TRAIN_TARGET: ("cityscapes_foggy_train",)
+  TEST: ("cityscapes_foggy_val",)
+OUTPUT_DIR: "checkpoints/uda/city2foggy/vgg_rot"
