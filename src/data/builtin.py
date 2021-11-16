@@ -138,6 +138,7 @@ def load_json(filename):
 # ========= Predefined datasets and splits for Cityscapes ==========
 _PREDEFINED_SPLITS_CITYSCAPES = {"cityscapes": {}}
 _PREDEFINED_SPLITS_CITYSCAPES['cityscapes']['cityscapes_train'] = ('Cityscapes/leftImg8bit/train', 'Cityscapes/cocoAnnotations/cityscapes_train_cocostyle.json')
+_PREDEFINED_SPLITS_CITYSCAPES['cityscapes']['cityscapes_val'] = ('Cityscapes/leftImg8bit/val', 'Cityscapes/cocoAnnotations/cityscapes_val_cocostyle.json')
 _PREDEFINED_SPLITS_CITYSCAPES['cityscapes']['cityscapes_foggy_train'] = ('Cityscapes/leftImg8bit_foggy/train', 'Cityscapes/cocoAnnotations/cityscapes_foggy_train_cocostyle.json')
 _PREDEFINED_SPLITS_CITYSCAPES['cityscapes']['cityscapes_foggy_val'] = ('Cityscapes/leftImg8bit_foggy/val', 'Cityscapes/cocoAnnotations/cityscapes_foggy_val_cocostyle.json')
 
